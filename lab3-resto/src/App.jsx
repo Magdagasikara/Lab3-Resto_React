@@ -1,11 +1,10 @@
-import { useState } from 'react'
-import Calendar from "./Components/Calendar"
+import BookingCreate from "./Components/BookingCreate"
 
 function App() {
 
   return (
     <>
-      <Calendar />
+      <BookingCreate />
     </>
   )
 }
