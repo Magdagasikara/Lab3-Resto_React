@@ -30,6 +30,7 @@ export default function UserForm({ closeSummaryAndUserForm, API_URI, bookingSumm
         }
     }
     async function handleSubmitBooking(e) {
+        e.preventDefault()
         const bookingObject = {
             timeStamp: new Date(),
             amountOfGuests: bookingSummary.amountOfGuests,
@@ -37,6 +38,7 @@ export default function UserForm({ closeSummaryAndUserForm, API_URI, bookingSumm
             reservationDurationInHours: bookingSummary.reservationDurationInHours,
             email
         }
+        console.log(bookingObject)
         if (isCustomerInDb) {
             await axios.post(`${API_URI}bookings/booking/add`, bookingObject);
         }
@@ -60,7 +62,7 @@ export default function UserForm({ closeSummaryAndUserForm, API_URI, bookingSumm
         }
     }
     return <>
-        <Form>
+        <Form className="userForm">
             <Form.Group className="mb-3" controlId="formBasicEmail">
                 <Form.Label>Email address</Form.Label>
                 <Form.Control

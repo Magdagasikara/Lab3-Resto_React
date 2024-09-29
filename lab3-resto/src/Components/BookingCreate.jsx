@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
 import ToggleButton from 'react-bootstrap/ToggleButton';
 import ToggleButtonGroup from 'react-bootstrap/ToggleButtonGroup';
@@ -7,6 +7,7 @@ import DropdownButton from 'react-bootstrap/DropdownButton';
 import BookingSummary from "./BookingSummary"
 import "react-day-picker/style.css";
 import "bootstrap/dist/css/bootstrap.min.css";
+import axios from "axios";
 
 // import max antal platser en kund kan boka
 // import öppettider
@@ -32,10 +33,44 @@ export default function BookingCreate() {
     const [bookingSummary, setBooking] = useState(null)
     const API_URI = "https://localhost:7212/api/"
 
+    useEffect(() => {
+        const sendHeight = () => {
+            const height = document.body.scrollHeight; // Beräkna höjden på React-innehållet
+            window.parent.postMessage({ height }, "*"); // Skicka höjd till föräldrafönstret (iframe-värden)
+        };
+
+        // Skicka höjden när komponenten först renderas
+        sendHeight();
+
+        // Skicka höjden när fönsterstorleken ändras
+        window.addEventListener("resize", sendHeight);
+
+        // Skapa en MutationObserver som observerar förändringar i DOM:en och justerar höjden
+        const observer = new MutationObserver(() => {
+            sendHeight();
+        });
+
+        // Observera förändringar i hela dokumentet
+        observer.observe(document.body, {
+            childList: true, // Lyssnar på förändringar i barnen (nytt element tillagt, borttaget)
+            subtree: true,   // Observerar förändringar i alla underliggande element
+            attributes: true // Lyssnar på attributförändringar (t.ex. stiländringar)
+        });
+
+        return () => {
+            // Rensa event och observer när komponenten avmonteras
+            window.removeEventListener("resize", sendHeight);
+            observer.disconnect(); // Sluta observera DOM-förändringar
+        };
+    }, []);
+
     function isSelectedDateInPast(selectedDate) {
         const dateToTest = new Date(selectedDate);
         dateToTest.setHours(0, 0, 0, 0);
         return dateToTest < today;
+    }
+    function isSelectedDateBookable(selectedDate) {
+        return !isSelectedDateInPast(selectedDate) && selectedDate <= oneMonthLater;
     }
 
     const handleNumberOfGuestsChange = (number) => setNumberOfGuests(number);
@@ -82,14 +117,17 @@ export default function BookingCreate() {
                 return isStartWithinOpening && isEndWithinOpening;
             });
         });
-
     }
+
     function handleSubmit(e) {
         e.preventDefault();
         const [hour, minutes] = selectedTimeSlot.split(':').map(Number);
         let reservationStart = new Date(selectedDate);
-        reservationStart.setHours(hour)
-        reservationStart.setMinutes(minutes)
+        reservationStart.setHours(hour - reservationStart.getTimezoneOffset() / 60);
+        reservationStart.setMinutes(minutes);
+        let reservationTime = new Date(selectedDate);
+        reservationTime.setHours(hour);
+        reservationTime.setMinutes(minutes);
         console.log(reservationStart)
 
         const reservationDurationInHours = visitDurationInMin / 60;
@@ -97,11 +135,11 @@ export default function BookingCreate() {
         const bookingToSet = {
             amountOfGuests: numberOfGuests,
             reservationStart: reservationStart.toISOString(),
-            reservationTime: reservationStart.toLocaleString(),
+            reservationTime: reservationTime.toLocaleString(),
             reservationDurationInHours
         }
         setBooking(bookingToSet);
-        console.log("bookingSummary ", bookingSummary)
+        console.log("bookingSummary ", bookingToSet)
     }
 
     function closeSummaryAndUserForm() {
@@ -142,11 +180,12 @@ export default function BookingCreate() {
                         onSelect={setSelectedDate}
                         footer={
                             selectedDate ?
-                                isSelectedDateInPast(selectedDate) ?
-                                    `Day ${selectedDate.toLocaleDateString()} has already passed`
-                                    : selectedDate > oneMonthLater ?
-                                        'You can only book one month ahead'
-                                        : `Selected: ${selectedDate.toLocaleDateString()} `
+                                isSelectedDateBookable(selectedDate) ?
+                                    `Selected: ${selectedDate.toLocaleDateString()} `
+                                    : isSelectedDateInPast(selectedDate) ?
+                                        `Day ${selectedDate.toLocaleDateString()} has already passed`
+                                        : 'You can only book one month ahead'
+
                                 : "Pick a day."
                         }
                     />
@@ -173,8 +212,8 @@ export default function BookingCreate() {
                                     value={selectedTimeSlot}
                                     onChange={(slot) => handleTimeSlotChange(slot)}
                                 >
-                                    {selectedDate && generateTimeSlots().map((slot, i) => (
-                                        <ToggleButton key={i} value={slot} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary">
+                                    {selectedDate && generateTimeSlots().map((slot, i, isBookable) => (
+                                        <ToggleButton key={i} value={slot} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary" disabled={!isBookable}>
                                             {slot}
                                         </ToggleButton>
                                     ))}
@@ -183,7 +222,12 @@ export default function BookingCreate() {
                         </>
                         : <></>
                 }
-                <button type="submit">ADD</button>
+                <button
+                    type="submit"
+                    disabled={!isSelectedDateBookable(selectedDate)}
+                >
+                    ADD
+                </button>
                 <button type="button" >Cancel</button>
             </form>
             {renderSummaryAndUserForm(bookingSummary)}
