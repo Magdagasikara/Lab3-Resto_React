@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { DayPicker } from "react-day-picker";
+import { isSelectedDateInPast, isSelectedDateBookable, isSelectedDateToday } from "../Services/DateService";
 import ToggleButton from 'react-bootstrap/ToggleButton';
 import ToggleButtonGroup from 'react-bootstrap/ToggleButtonGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
@@ -22,7 +23,7 @@ export default function BookingCreate() {
     const [selectedDate, setSelectedDate] = useState();
     const maxSeatsPerBooking = 8;
     const [openingHours, setOpeningHours] = useState([[11, 13], [17, 23]]);
-    const [numberOfGuests, setNumberOfGuests] = useState();
+    const [numberOfGuests, setNumberOfGuests] = useState(1);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const oneMonthLater = new Date();
@@ -30,7 +31,8 @@ export default function BookingCreate() {
     const [visitDurationInMin, setVisitDurationInMin] = useState(90)
     const [visitDurationText, setVisitDurationText] = useState("1h 30m")
     const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-    const [bookingSummary, setBooking] = useState(null)
+    const [bookingSummary, setBooking] = useState(null);
+    const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
     const API_URI = "https://localhost:7212/api/"
 
     useEffect(() => {
@@ -64,14 +66,15 @@ export default function BookingCreate() {
         };
     }, []);
 
-    function isSelectedDateInPast(selectedDate) {
-        const dateToTest = new Date(selectedDate);
-        dateToTest.setHours(0, 0, 0, 0);
-        return dateToTest < today;
-    }
-    function isSelectedDateBookable(selectedDate) {
-        return !isSelectedDateInPast(selectedDate) && selectedDate <= oneMonthLater;
-    }
+    useEffect(() => {
+        if (selectedDate) {
+            generateTimeSlots().then((slots) => {
+                setAvailableTimeSlots(slots); // Uppdatera tillgängliga tidsslotts
+            });
+        }
+    }, [selectedDate, visitDurationInMin, numberOfGuests]);
+
+
 
     const handleNumberOfGuestsChange = (number) => setNumberOfGuests(number);
     const handleVisitDurationChange = (minutes) => {
@@ -80,17 +83,17 @@ export default function BookingCreate() {
     }
     const handleTimeSlotChange = (slot) => setSelectedTimeSlot(slot);
 
-    const generateTimeSlots = () => {
+    const generateTimeSlots = async () => {
         let slots = [];
         openingHours.forEach(hours => {
             const [startHour, endHour] = hours;
             for (let hour = startHour; hour < endHour; hour++) {
-                slots.push(`${hour}:00`);
-                slots.push(`${hour}:30`);
+                slots.push({ time: `${hour}:00`, isBookable: false });
+                slots.push({ time: `${hour}:30`, isBookable: false });
             }
         });
-        return slots.filter((time) => {
-            const [hours, minutes] = time.split(':').map(Number);
+        const filteredSlotsPromises = slots.map(async (slot) => {
+            const [hours, minutes] = slot.time.split(':').map(Number);
 
             // create startTime as date for this timeslot
             const startTime = new Date(selectedDate);
@@ -101,11 +104,13 @@ export default function BookingCreate() {
             const endTime = new Date(startTime);
             endTime.setMinutes(startTime.getMinutes() + visitDurationInMin);
 
-            // filter away those timeslots that end after opening hours
-            return openingHours.some(([start, end]) => {
+            // checkk if timeslots start and end within opening hours
+            const isWithinOpeningHours = openingHours.some(([start, end]) => {
+
                 const openingStartTime = new Date(selectedDate);
                 openingStartTime.setHours(start);
                 openingStartTime.setMinutes(0);
+
                 const openingEndTime = new Date(selectedDate);
                 openingEndTime.setHours(end);
                 openingEndTime.setMinutes(0);
@@ -116,7 +121,39 @@ export default function BookingCreate() {
 
                 return isStartWithinOpening && isEndWithinOpening;
             });
+            if (isWithinOpeningHours) {
+                try {
+                    console.log(slot.time, " kom in för startTime ", startTime.toISOString());
+                    const response = await axios.get(`${API_URI}tables/places/available`, {
+                        params: {
+                            time: startTime.toISOString(),
+                            reservationHours: visitDurationInMin / 60
+                        }
+                    });
+
+                    // timeslot bookable if enough places AND not too early (if today must be two hours from now)
+                    const datetimeInTwoHours = new Date();
+                    datetimeInTwoHours.setHours(datetimeInTwoHours.getHours() + 2);
+                    const isTodayButTooEarly = isSelectedDateToday(selectedDate) && startTime < datetimeInTwoHours;
+                    if (response.data >= numberOfGuests && !isTodayButTooEarly) {
+                        return { ...slot, isBookable: true };
+                    }
+                    else {
+                        return slot;
+                    }
+                } catch (error) {
+                    console.error("Error fetching available places:", error);
+                }
+            }
+            return null;
         });
+        const filteredSlots = await Promise.all(filteredSlotsPromises);
+        // Filtrera bort alla null-värden (ogiltiga slots)
+        const validSlots = filteredSlots.filter(slot => slot !== null);
+
+        console.log("Validerade slots:", validSlots);
+
+        return validSlots;
     }
 
     function handleSubmit(e) {
@@ -181,7 +218,9 @@ export default function BookingCreate() {
                         footer={
                             selectedDate ?
                                 isSelectedDateBookable(selectedDate) ?
-                                    `Selected: ${selectedDate.toLocaleDateString()} `
+                                    isSelectedDateToday(selectedDate) ?
+                                        `Selected: ${selectedDate.toLocaleDateString()} (today). You can only book slots starting two hours from now.`
+                                        : `Selected: ${selectedDate.toLocaleDateString()} `
                                     : isSelectedDateInPast(selectedDate) ?
                                         `Day ${selectedDate.toLocaleDateString()} has already passed`
                                         : 'You can only book one month ahead'
@@ -212,9 +251,9 @@ export default function BookingCreate() {
                                     value={selectedTimeSlot}
                                     onChange={(slot) => handleTimeSlotChange(slot)}
                                 >
-                                    {selectedDate && generateTimeSlots().map((slot, i, isBookable) => (
-                                        <ToggleButton key={i} value={slot} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary" disabled={!isBookable}>
-                                            {slot}
+                                    {selectedDate && availableTimeSlots.map((slot, i) => (
+                                        <ToggleButton key={i} value={slot.time} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary" disabled={!slot.isBookable}>
+                                            {slot.time}
                                         </ToggleButton>
                                     ))}
                                 </ToggleButtonGroup>
