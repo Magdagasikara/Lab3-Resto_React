@@ -5,7 +5,8 @@ import ToggleButton from 'react-bootstrap/ToggleButton';
 import ToggleButtonGroup from 'react-bootstrap/ToggleButtonGroup';
 import Dropdown from 'react-bootstrap/Dropdown';
 import DropdownButton from 'react-bootstrap/DropdownButton';
-import BookingSummary from "./BookingSummary"
+import BookingCreateUser from "./BookingCreateUser"
+import BookingConfirmation from "./BookingConfirmation"
 import "react-day-picker/style.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import axios from "axios";
@@ -14,10 +15,13 @@ import axios from "axios";
 // import öppettider
 
 //todo
-//hämta info om de är bokningsbara för antalet personer
-//ska inte gå att trycka på ADD om fel datum etc
 // kan jag använda CreateContext här för API_URI?
-// UTC tiden
+// inte kunna trycka på ADD innan tiden är vald
+// testa tillägget .toLocaleString('sv-SE'), på alla ställen
+// om personen finns uppdatera personen och sen skapa bokning (ifall nytt namn)
+
+// annars: uppdatera bokning
+// admin inlog etc
 
 export default function BookingCreate() {
     const [selectedDate, setSelectedDate] = useState();
@@ -31,8 +35,10 @@ export default function BookingCreate() {
     const [visitDurationInMin, setVisitDurationInMin] = useState(90)
     const [visitDurationText, setVisitDurationText] = useState("1h 30m")
     const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
-    const [bookingSummary, setBooking] = useState(null);
+    const [bookingSummaryPrel, setBookingPrel] = useState(null);
+    const [bookingConfirmation, setBookingConfirmation] = useState(null);
     const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+    const [isBookingConfirmed, setIsBookingConfirmed] = useState(false);
     const API_URI = "https://localhost:7212/api/"
 
     useEffect(() => {
@@ -126,7 +132,7 @@ export default function BookingCreate() {
                     console.log(slot.time, " kom in för startTime ", startTime.toISOString());
                     const response = await axios.get(`${API_URI}tables/places/available`, {
                         params: {
-                            time: startTime.toISOString(),
+                            time: startTime.toLocaleString('sv-SE'),
                             reservationHours: visitDurationInMin / 60
                         }
                     });
@@ -169,107 +175,109 @@ export default function BookingCreate() {
 
         const reservationDurationInHours = visitDurationInMin / 60;
 
-        const bookingToSet = {
+        const bookingToSetPrel = {
             amountOfGuests: numberOfGuests,
             reservationStart: reservationStart.toISOString(),
             reservationTime: reservationTime.toLocaleString(),
             reservationDurationInHours
         }
-        setBooking(bookingToSet);
-        console.log("bookingSummary ", bookingToSet)
+        setBookingPrel(bookingToSetPrel);
+        console.log("bookingSummaryPrel ", bookingToSetPrel)
     }
 
     function closeSummaryAndUserForm() {
-        setBooking(null)
+        setBooking(null);
+        setIsBookingConfirmed(false);
     }
 
-    function renderSummaryAndUserForm(bookingSummary) {
-        if (bookingSummary !== null) {
-            return <>
-                <BookingSummary bookingSummary={bookingSummary} closeSummaryAndUserForm={closeSummaryAndUserForm} API_URI={API_URI} />
-            </>;
-        }
-    }
+
     return (
         <>
-            <form onSubmit={handleSubmit}>
-                <h2>NEW RESERVATION</h2>
-                <section>
-                    <h3>Number of guests</h3>
-                    <ToggleButtonGroup
-                        type="radio"
-                        name="btnradiogr"
-                        value={numberOfGuests}
-                        onChange={(number) => handleNumberOfGuestsChange(number)}
-                        aria-label="Choose number of guests">
-                        {[...Array(maxSeatsPerBooking)].map((_, i) => (
-                            <ToggleButton key={i + 1} type="radio" id={`btnradio${i + 1}`} value={i + 1} variant="outline-secondary">
-                                {i + 1}
-                            </ToggleButton>))}
-                    </ToggleButtonGroup>
-                </section>
-                <section>
-                    <DayPicker
-                        mode="single"
-                        // showOutsideDays
-                        numberOfMonths={2}
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        footer={
-                            selectedDate ?
-                                isSelectedDateBookable(selectedDate) ?
-                                    isSelectedDateToday(selectedDate) ?
-                                        `Selected: ${selectedDate.toLocaleDateString()} (today). You can only book slots starting two hours from now.`
-                                        : `Selected: ${selectedDate.toLocaleDateString()} `
-                                    : isSelectedDateInPast(selectedDate) ?
-                                        `Day ${selectedDate.toLocaleDateString()} has already passed`
-                                        : 'You can only book one month ahead'
+            {bookingSummaryPrel ?
+                isBookingConfirmed ?
+                    <BookingConfirmation bookingConfirmation={bookingConfirmation} />
+                    : <BookingCreateUser bookingSummaryPrel={bookingSummaryPrel} setIsBookingConfirmed={setIsBookingConfirmed} setBookingConfirmation={setBookingConfirmation} closeSummaryAndUserForm={closeSummaryAndUserForm} API_URI={API_URI} />
+                : (
+                    <form onSubmit={handleSubmit}>
+                        <h2>NEW RESERVATION</h2>
+                        <section>
+                            <h3>Number of guests</h3>
+                            <ToggleButtonGroup
+                                type="radio"
+                                name="btnradiogr"
+                                value={numberOfGuests}
+                                onChange={(number) => handleNumberOfGuestsChange(number)}
+                                aria-label="Choose number of guests">
+                                {[...Array(maxSeatsPerBooking)].map((_, i) => (
+                                    <ToggleButton key={i + 1} type="radio" id={`btnradio${i + 1}`} value={i + 1} variant="outline-secondary">
+                                        {i + 1}
+                                    </ToggleButton>))}
+                            </ToggleButtonGroup>
+                        </section>
+                        <section>
+                            <DayPicker
+                                mode="single"
+                                // showOutsideDays
+                                numberOfMonths={2}
+                                selected={selectedDate}
+                                onSelect={setSelectedDate}
+                                footer={
+                                    selectedDate ?
+                                        isSelectedDateBookable(selectedDate) ?
+                                            isSelectedDateToday(selectedDate) ?
+                                                `Selected: ${selectedDate.toLocaleDateString()} (today). You can only book slots starting two hours from now.`
+                                                : `Selected: ${selectedDate.toLocaleDateString()} `
+                                            : isSelectedDateInPast(selectedDate) ?
+                                                `Day ${selectedDate.toLocaleDateString()} has already passed`
+                                                : 'You can only book one month ahead'
 
-                                : "Pick a day."
+                                        : "Pick a day."
+                                }
+                            />
+                        </section>
+                        {
+                            !isSelectedDateInPast(selectedDate) && selectedDate <= oneMonthLater ?
+                                <>
+                                    <section>
+                                        <DropdownButton
+                                            id="dropdown-basic-button"
+                                            variant="Secondary"
+                                            title={`Length of your visit: ${visitDurationText}`}
+                                        >
+                                            <Dropdown.Item onClick={() => handleVisitDurationChange(90)}>1h 30m</Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleVisitDurationChange(120)}>2h 00m</Dropdown.Item>
+                                            <Dropdown.Item onClick={() => handleVisitDurationChange(150)}>2h 30m</Dropdown.Item>
+                                        </DropdownButton>
+                                    </section >
+                                    <section>
+                                        <ToggleButtonGroup
+                                            type="radio"
+                                            name="timeslots"
+                                            aria-label="Time slots"
+                                            value={selectedTimeSlot}
+                                            onChange={(slot) => handleTimeSlotChange(slot)}
+                                        >
+                                            {selectedDate && availableTimeSlots.map((slot, i) => (
+                                                <ToggleButton key={i} value={slot.time} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary" disabled={!slot.isBookable}>
+                                                    {slot.time}
+                                                </ToggleButton>
+                                            ))}
+                                        </ToggleButtonGroup>
+                                    </section>
+                                </>
+                                : <></>
                         }
-                    />
-                </section>
-                {
-                    !isSelectedDateInPast(selectedDate) && selectedDate <= oneMonthLater ?
-                        <>
-                            <section>
-                                <DropdownButton
-                                    id="dropdown-basic-button"
-                                    variant="Secondary"
-                                    title={`Length of your visit: ${visitDurationText}`}
-                                >
-                                    <Dropdown.Item onClick={() => handleVisitDurationChange(90)}>1h 30m</Dropdown.Item>
-                                    <Dropdown.Item onClick={() => handleVisitDurationChange(120)}>2h 00m</Dropdown.Item>
-                                    <Dropdown.Item onClick={() => handleVisitDurationChange(150)}>2h 30m</Dropdown.Item>
-                                </DropdownButton>
-                            </section >
-                            <section>
-                                <ToggleButtonGroup
-                                    type="radio"
-                                    name="timeslots"
-                                    aria-label="Time slots"
-                                    value={selectedTimeSlot}
-                                    onChange={(slot) => handleTimeSlotChange(slot)}
-                                >
-                                    {selectedDate && availableTimeSlots.map((slot, i) => (
-                                        <ToggleButton key={i} value={slot.time} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary" disabled={!slot.isBookable}>
-                                            {slot.time}
-                                        </ToggleButton>
-                                    ))}
-                                </ToggleButtonGroup>
-                            </section>
-                        </>
-                        : <></>
-                }
-                <button
-                    type="submit"
-                    disabled={!isSelectedDateBookable(selectedDate)}
-                >
-                    ADD
-                </button>
-                <button type="button" >Cancel</button>
-            </form>
-            {renderSummaryAndUserForm(bookingSummary)}
+                        <button
+                            type="submit"
+                            disabled={!isSelectedDateBookable(selectedDate)}
+                        >
+                            ADD
+                        </button>
+                        <button type="button" >Cancel</button>
+                    </form>
+                )
+            }
         </>
     )
+
 }
