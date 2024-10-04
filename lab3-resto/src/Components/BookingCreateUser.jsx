@@ -31,14 +31,19 @@ export default function BookingCreateUser({ bookingSummaryPrel, setIsBookingConf
     }
     async function handleSubmitBooking(e) {
         e.preventDefault()
+        const customerObject = {
+            name,
+            email
+        }
         if (!isCustomerInDb) {
-            const customerObject = {
-                name,
-                email
-            }
             const responseCustomer = await axios.post(`${API_URI}customers/customer/add`, customerObject);
             if (!(responseCustomer.status >= 200 && responseCustomer.status < 300)) {
                 console.log("problem med customer/add!")
+            }
+        } else {
+            const responseCustomer = await axios.patch(`${API_URI}customers/customer/update`, customerObject);
+            if (!(responseCustomer.status >= 200 && responseCustomer.status < 300)) {
+                console.log("problem med customer/update!")
             }
         }
         const bookingObject = {

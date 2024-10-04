@@ -4,8 +4,8 @@ import RestaurantMini from "../assets/restaurant.jpg"
 export default function BookingConfirmation({ bookingConfirmation }) {
     return <>
         <article>
-            <Card style={{ width: '50rem' }}>
-                {/* <Card.Img className="restaurant-mini" variant="top" src={RestaurantMini} alt="Restaurant picture" /> */}
+            <Card >{/*style={{ width: '50rem' }}*/}
+                <Card.Img className="restaurant-mini" variant="top" src={RestaurantMini} alt="Restaurant picture" />
                 <Card.Body>
                     <Card.Title>Thank you for your reservation, {bookingConfirmation.name}! </Card.Title>
                     <Card.Text>
@@ -22,7 +22,7 @@ export default function BookingConfirmation({ bookingConfirmation }) {
                 </Card.Body>
 
             </Card>
-        </article>
+        </article >
 
     </>
 }

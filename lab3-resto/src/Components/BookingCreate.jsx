@@ -258,7 +258,15 @@ export default function BookingCreate() {
                                             onChange={(slot) => handleTimeSlotChange(slot)}
                                         >
                                             {selectedDate && availableTimeSlots.map((slot, i) => (
-                                                <ToggleButton key={i} value={slot.time} type="radio" id={`btn2radio${i + 1}`} variant="outline-secondary" disabled={!slot.isBookable}>
+                                                <ToggleButton
+                                                    key={i}
+                                                    value={slot.time}
+                                                    type="radio"
+                                                    id={`btn2radio${i + 1}`}
+                                                    variant="outline-secondary"
+                                                    disabled={!slot.isBookable}
+                                                    style={!slot.isBookable ? { textDecoration: 'line-through', color: 'gray' } : {}}
+                                                >
                                                     {slot.time}
                                                 </ToggleButton>
                                             ))}
