@@ -12,11 +12,27 @@ https://github.com/Magdagasikara/Lab2-MVC_Resto_Frontend
 
 Extras
 
-Tillgängliga timeslots skapas med hänsyn till:
-- Öppettider och besökslängden definierar vilka timeslots som visas:
-  - Öppettider. Öppettider definieras som array av arrays (just nu hårdkodat [11,14],[17,23]) vilket kan lyftas till adminvy och styras därifrån.
-  - Besökets längd. Bara om hela valda reserationslängden ryms inom öppettider (både start- och sluttid) visas timesloten.
-- Antalet gäster och dagens datum och tid definierar vilka timeslots är valbara (inte "släckta" och överstrukna)
-  - Endast timeslots som har plats för vald besökslängd och vald antalet gäster kan väljas för reservation.
-  - Om reservationen gäller den aktuella dagen, bara tider som startar om 2 timmar från nu kan väljas för reservation.
-Dagar som passerat eller ligger för långt fram i tiden (en månad just nu, även detta kan flyttas till adminvyn och styras därifrån) får inte reserveras och inga timeslots dyker upp.
+User form:  
+- Once user leaves the email field with a valid value a request is made to backend to check if user is already there.  
+- If user exists, the name filed will be automatically filled in.  
+- If user exists and changes the name, the name will be updated in the db while making the reservation.  
+- If user doesn't exist, the email and name will be saved in the db while making the reservation.  
+
+Available timeslots are created with regard to:  
+- Opening hours and visit duration define which timeslots will be shown:  
+  - Opening hours are defined as an array of arrays (now [[11,14],[17,23]]) but it could be added to Admin's dashboard and saved in the db.  
+  - Visit duration. Only if the whole duration is withing opening hours (both start and end) the timeslot will be shown.  
+- Number of guests and today's date and time define which timeslots are choseable (not "turned off" and crossed out):  
+  - Only timeslots that have available spaces for the chosen visit duration and number of guests can be chosen for reservation.  
+  - If reservation is made for the current day, only timeslots starting 2h ahead can be chosen for reservation.  
+Days that have passed or are too far ahead (on month ahead - even this could be added to settings in admin's dashboard) cannot be booked and no timeslots would appear.  
+  
+
+Crucial improvements needed....  
+- Clean components, break out functions and move them to services or other components...  
+  
+Possible improvements:   
+- Import openingHours and maxSeatsPerBooking from admin's settings and Db instead of defining them in the code  
+- Use CreateContext to transfer states between components.  
+- Disable ADD before timeslot is chosen.  
+- Try adding  Swedish settings in .toLocaleString('sv-SE').  

@@ -11,18 +11,6 @@ import "react-day-picker/style.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import axios from "axios";
 
-// import max antal platser en kund kan boka
-// import öppettider
-
-//todo
-// kan jag använda CreateContext här för API_URI?
-// inte kunna trycka på ADD innan tiden är vald
-// testa tillägget .toLocaleString('sv-SE'), på alla ställen
-// om personen finns uppdatera personen och sen skapa bokning (ifall nytt namn)
-
-// annars: uppdatera bokning
-// admin inlog etc
-
 export default function BookingCreate() {
     const [selectedDate, setSelectedDate] = useState();
     const maxSeatsPerBooking = 8;
@@ -41,47 +29,44 @@ export default function BookingCreate() {
     const [isBookingConfirmed, setIsBookingConfirmed] = useState(false);
     const API_URI = "https://localhost:7212/api/"
 
+    // Sends height needed for the React component back to Frontend with MVC
     useEffect(() => {
         const sendHeight = () => {
-            const height = document.body.scrollHeight; // Beräkna höjden på React-innehållet
-            window.parent.postMessage({ height }, "*"); // Skicka höjd till föräldrafönstret (iframe-värden)
+            const height = document.body.scrollHeight;
+            window.parent.postMessage({ height }, "*");
         };
 
-        // Skicka höjden när komponenten först renderas
         sendHeight();
 
-        // Skicka höjden när fönsterstorleken ändras
         window.addEventListener("resize", sendHeight);
 
-        // Skapa en MutationObserver som observerar förändringar i DOM:en och justerar höjden
         const observer = new MutationObserver(() => {
             sendHeight();
         });
 
-        // Observera förändringar i hela dokumentet
         observer.observe(document.body, {
-            childList: true, // Lyssnar på förändringar i barnen (nytt element tillagt, borttaget)
-            subtree: true,   // Observerar förändringar i alla underliggande element
-            attributes: true // Lyssnar på attributförändringar (t.ex. stiländringar)
+            childList: true,
+            subtree: true,
+            attributes: true
         });
 
         return () => {
-            // Rensa event och observer när komponenten avmonteras
             window.removeEventListener("resize", sendHeight);
-            observer.disconnect(); // Sluta observera DOM-förändringar
+            observer.disconnect();
         };
     }, []);
 
+    // Updates possible timeslots on each change of selected date, visit duration or amount of guests
     useEffect(() => {
         if (selectedDate) {
             generateTimeSlots().then((slots) => {
-                setAvailableTimeSlots(slots); // Uppdatera tillgängliga tidsslotts
+                setAvailableTimeSlots(slots);
             });
         }
     }, [selectedDate, visitDurationInMin, numberOfGuests]);
 
 
-
+    // Change handlers
     const handleNumberOfGuestsChange = (number) => setNumberOfGuests(number);
     const handleVisitDurationChange = (minutes) => {
         setVisitDurationInMin(minutes);
@@ -89,6 +74,9 @@ export default function BookingCreate() {
     }
     const handleTimeSlotChange = (slot) => setSelectedTimeSlot(slot);
 
+    // Generate time slots dependant on opening hours, visit duration and amount of guests:
+    // All possible timeslots are displayed for the selected date based on opening hours and visit duration (whole booking need to start and end within opening hours).
+    // Timeslots that have passed (or are within 2h from now) or don't have enough places for the whole reservation time are disabled.
     const generateTimeSlots = async () => {
         let slots = [];
         openingHours.forEach(hours => {
@@ -154,7 +142,7 @@ export default function BookingCreate() {
             return null;
         });
         const filteredSlots = await Promise.all(filteredSlotsPromises);
-        // Filtrera bort alla null-värden (ogiltiga slots)
+        // Filter away all the nulls (invalid slots)
         const validSlots = filteredSlots.filter(slot => slot !== null);
 
         console.log("Validerade slots:", validSlots);
@@ -162,6 +150,7 @@ export default function BookingCreate() {
         return validSlots;
     }
 
+    // Handle submit - summary of chosen day, timeslot and duration - and sets preliminary booking which sends user to user form
     function handleSubmit(e) {
         e.preventDefault();
         const [hour, minutes] = selectedTimeSlot.split(':').map(Number);
@@ -185,11 +174,11 @@ export default function BookingCreate() {
         console.log("bookingSummaryPrel ", bookingToSetPrel)
     }
 
+    // Once booked restart the component
     function closeSummaryAndUserForm() {
         setBooking(null);
         setIsBookingConfirmed(false);
     }
-
 
     return (
         <>
