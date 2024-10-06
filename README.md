@@ -1,4 +1,15 @@
 
+___
+**Restaurant app (3/3), frontend with React.**  
+Book a table component for restaurant's customers. Uses DayPicker to choose dates and displays possible and available timeslots depending on opening hours and available places.  
+___
+  
+Part 1, backend with ASP.NET Core Web Api:  
+https://github.com/Magdagasikara/Lab1-WebAPI_Db_Resto  
+Part 2, frontend with ASP.NET MVC:  
+https://github.com/Magdagasikara/Lab2-MVC_Resto_Frontend  
+
+
 Extras
 
 Tillgängliga timeslots skapas med hänsyn till:
